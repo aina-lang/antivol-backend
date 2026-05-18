@@ -6,11 +6,13 @@ import { DevicesService } from './devices.service';
 import { DevicesController } from './devices.controller';
 import { DetectionsController } from './detections.controller';
 import { AuthModule } from '../auth/auth.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Device, Detection]),
     AuthModule,
+    MailModule,
   ],
   providers: [DevicesService],
   controllers: [DevicesController, DetectionsController],
