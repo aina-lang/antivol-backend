@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { MailModule } from './mail/mail.module';
 import { OtpModule } from './otp/otp.module';
 import { AuthModule } from './auth/auth.module';
+import { DevicesModule } from './devices/devices.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { AuthModule } from './auth/auth.module';
     MailModule,
     OtpModule,
     AuthModule,
+    DevicesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
