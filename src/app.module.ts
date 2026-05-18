@@ -3,7 +3,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { User } from './entities/user.entity';
+import { MailModule } from './mail/mail.module';
+import { OtpModule } from './otp/otp.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -25,7 +27,9 @@ import { User } from './entities/user.entity';
         synchronize: true, // auto-creates database tables based on entity definitions
       }),
     }),
-    TypeOrmModule.forFeature([User]),
+    MailModule,
+    OtpModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
