@@ -26,6 +26,17 @@ export class DevicesService {
     return this.deviceRepository.save(device);
   }
 
+  // Déclarer l'appareil du compte comme sécurisé / retrouvé (annuler la recherche)
+  async declareSecured(userId: number) {
+    const device = await this.deviceRepository.findOne({ where: { ownerId: userId } });
+    if (!device) {
+      throw new NotFoundException("Aucun appareil n'est enregistré pour ce compte.");
+    }
+    device.isLost = false;
+    device.description = ''; // Réinitialiser les détails de perte
+    return this.deviceRepository.save(device);
+  }
+
   // Enregistrer ou mettre à jour l'unique appareil d'un compte (Un compte = Un téléphone seulement)
   async registerDevice(userId: number, dto: { deviceId: string; model: string }) {
     const { deviceId, model } = dto;
@@ -34,8 +45,7 @@ export class DevicesService {
     if (device) {
       device.deviceId = deviceId;
       device.model = model;
-      // Ne pas écraser isLost s'il l'est déjà, ou réinitialiser à false si l'utilisateur reconnecte son propre appareil trouvé
-      device.isLost = false; 
+      // Conserver l'état de perte actuel (ne pas écraser à false lors d'un simple enregistrement/sync automatique de démarrage)
     } else {
       device = this.deviceRepository.create({
         deviceId,

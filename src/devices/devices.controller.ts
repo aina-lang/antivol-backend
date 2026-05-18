@@ -18,6 +18,12 @@ export class DevicesController {
     return this.devicesService.declareLost(req.user.sub, dto);
   }
 
+  @Post('secure')
+  @UseGuards(JwtAuthGuard)
+  async declareSecured(@Req() req: any) {
+    return this.devicesService.declareSecured(req.user.sub);
+  }
+
   @Get('mine')
   @UseGuards(JwtAuthGuard)
   async getMyDevices(@Req() req: any) {
