@@ -77,8 +77,7 @@ export class DevicesService {
   // Récupérer les statistiques globales de téléphones protégés
   async getProtectedStats() {
     const count = await this.deviceRepository.count();
-    // Valeur de base réaliste si la base de données est encore vide
-    return { count: Math.max(count, 42) };
+    return { count };
   }
 
   // Signaler une détection de téléphone perdu (Anonyme)
