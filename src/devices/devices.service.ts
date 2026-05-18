@@ -13,25 +13,35 @@ export class DevicesService {
     private detectionRepository: Repository<Detection>,
   ) {}
 
-  // Déclarer un appareil perdu
-  async declareLost(userId: number, dto: { deviceId: string; model: string; description?: string }) {
-    const { deviceId, model, description } = dto;
+  // Déclarer l'appareil du compte comme perdu
+  async declareLost(userId: number, dto: { description?: string }) {
+    const { description } = dto;
 
-    let device = await this.deviceRepository.findOne({ where: { deviceId } });
+    const device = await this.deviceRepository.findOne({ where: { ownerId: userId } });
+    if (!device) {
+      throw new NotFoundException("Aucun appareil n'est enregistré pour ce compte.");
+    }
+    device.isLost = true;
+    if (description !== undefined) device.description = description;
+    return this.deviceRepository.save(device);
+  }
+
+  // Enregistrer ou mettre à jour l'unique appareil d'un compte (Un compte = Un téléphone seulement)
+  async registerDevice(userId: number, dto: { deviceId: string; model: string }) {
+    const { deviceId, model } = dto;
+
+    let device = await this.deviceRepository.findOne({ where: { ownerId: userId } });
     if (device) {
-      if (device.ownerId !== userId) {
-        throw new ForbiddenException("Vous n'êtes pas le propriétaire de cet appareil.");
-      }
-      device.isLost = true;
-      if (description !== undefined) device.description = description;
-      if (model !== undefined) device.model = model;
+      device.deviceId = deviceId;
+      device.model = model;
+      // Ne pas écraser isLost s'il l'est déjà, ou réinitialiser à false si l'utilisateur reconnecte son propre appareil trouvé
+      device.isLost = false; 
     } else {
       device = this.deviceRepository.create({
         deviceId,
         model,
-        description,
-        isLost: true,
         ownerId: userId,
+        isLost: false,
       });
     }
     return this.deviceRepository.save(device);

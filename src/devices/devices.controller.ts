@@ -6,9 +6,15 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class DevicesController {
   constructor(private readonly devicesService: DevicesService) {}
 
+  @Post('register')
+  @UseGuards(JwtAuthGuard)
+  async registerDevice(@Req() req: any, @Body() dto: { deviceId: string; model: string }) {
+    return this.devicesService.registerDevice(req.user.sub, dto);
+  }
+
   @Post('lost')
   @UseGuards(JwtAuthGuard)
-  async declareLost(@Req() req: any, @Body() dto: { deviceId: string; model: string; description?: string }) {
+  async declareLost(@Req() req: any, @Body() dto: { description?: string }) {
     return this.devicesService.declareLost(req.user.sub, dto);
   }
 
