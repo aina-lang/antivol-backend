@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Device } from '../entities/device.entity';
 import { Detection } from '../entities/detection.entity';
+import { User } from '../entities/user.entity';
 import { MailService } from '../mail/mail.service';
 
 @Injectable()
@@ -12,6 +13,8 @@ export class DevicesService {
     private deviceRepository: Repository<Device>,
     @InjectRepository(Detection)
     private detectionRepository: Repository<Detection>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
     private mailService: MailService,
   ) {}
 
@@ -40,8 +43,8 @@ export class DevicesService {
   }
 
   // Enregistrer ou mettre à jour l'unique appareil d'un compte (Un compte = Un téléphone seulement)
-  async registerDevice(userId: number, dto: { deviceId: string; model: string }) {
-    const { deviceId, model } = dto;
+  async registerDevice(userId: number, dto: { deviceId: string; model: string; expoPushToken?: string }) {
+    const { deviceId, model, expoPushToken } = dto;
 
     let device = await this.deviceRepository.findOne({ where: { ownerId: userId } });
     if (device) {
@@ -56,7 +59,19 @@ export class DevicesService {
         isLost: false,
       });
     }
-    return this.deviceRepository.save(device);
+    const savedDevice = await this.deviceRepository.save(device);
+
+    // Mettre à jour l'expoPushToken et le currentDeviceId sur le compte de l'utilisateur
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (user) {
+      user.currentDeviceId = deviceId;
+      if (expoPushToken !== undefined) {
+        user.expoPushToken = expoPushToken;
+      }
+      await this.userRepository.save(user);
+    }
+
+    return savedDevice;
   }
 
   // Récupérer la liste de mes appareils
@@ -114,11 +129,11 @@ export class DevicesService {
           year: 'numeric',
         });
 
-        const subject = `🚨 URGENCE : Votre ${modelName} a été localisé !`;
+        const subject = `URGENCE : Votre ${modelName} a été localisé !`;
         const htmlContent = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #ffffff;">
             <div style="text-align: center; border-bottom: 2px solid #FF3B30; padding-bottom: 20px; margin-bottom: 20px;">
-              <h2 style="color: #FF3B30; margin: 0;">🚨 ALERTE ANTIVOL MESH</h2>
+              <h2 style="color: #FF3B30; margin: 0;">ALERTE ANTIVOL MESH</h2>
             </div>
             <p style="font-size: 16px; color: #333333; line-height: 1.5;">Bonjour <strong>${victimName}</strong>,</p>
             <p style="font-size: 16px; color: #555555; line-height: 1.5;">
@@ -144,6 +159,30 @@ export class DevicesService {
         `;
 
         await this.mailService.sendMail(victimEmail, subject, htmlContent);
+
+        // Envoyer une notification push via Expo uniquement si l'utilisateur est connecté sur un autre appareil
+        if (device.owner.expoPushToken && device.owner.currentDeviceId !== bleId) {
+          try {
+            const pushResponse = await fetch('https://exp.host/--/api/v2/push/send', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              body: JSON.stringify({
+                to: device.owner.expoPushToken,
+                sound: 'default',
+                title: 'Appareil localisé !',
+                body: `Votre appareil "${modelName}" vient d'être repéré par le réseau communautaire.`,
+                data: { deviceId: bleId, lat, lng },
+              }),
+            });
+            const pushResult = await pushResponse.json();
+            console.log(`Push notification sent successfully to ${device.owner.expoPushToken}:`, pushResult);
+          } catch (pushErr) {
+            console.error("Échec de l'envoi de la push notification:", pushErr);
+          }
+        }
       }
     } catch (err) {
       console.error("Échec de l'envoi de l'email d'alerte de détection à la victime:", err);

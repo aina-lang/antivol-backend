@@ -11,6 +11,12 @@ export class User {
   @Column({ nullable: true })
   name: string;
 
+  @Column({ nullable: true })
+  expoPushToken: string;
+
+  @Column({ nullable: true })
+  currentDeviceId: string;
+
   @Column()
   password?: string;
 

@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { User } from './user.entity';
 
 @Entity('otps')
 export class Otp {
@@ -7,6 +8,10 @@ export class Otp {
 
   @Column()
   email: string;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'email', referencedColumnName: 'email' })
+  user: User;
 
   @Column()
   code: string;

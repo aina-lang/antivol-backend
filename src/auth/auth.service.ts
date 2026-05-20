@@ -162,4 +162,24 @@ export class AuthService {
       message: 'Votre mot de passe a été réinitialisé avec succès.',
     };
   }
+
+  async updateProfile(userId: number, dto: { name?: string; password?: string }) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException("Utilisateur introuvable.");
+    }
+    if (dto.name) {
+      user.name = dto.name;
+    }
+    if (dto.password) {
+      user.password = await bcrypt.hash(dto.password, 10);
+    }
+    const savedUser = await this.userRepository.save(user);
+    return {
+      id: savedUser.id,
+      name: savedUser.name,
+      email: savedUser.email,
+      isVerified: savedUser.isVerified,
+    };
+  }
 }
