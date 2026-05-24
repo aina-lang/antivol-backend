@@ -43,22 +43,50 @@ export class DevicesService {
   }
 
   // Enregistrer ou mettre à jour l'unique appareil d'un compte (Un compte = Un téléphone seulement)
-  async registerDevice(userId: number, dto: { deviceId: string; model: string; expoPushToken?: string }) {
-    const { deviceId, model, expoPushToken } = dto;
+  // Si forceReplace=true, le nouvel appareil remplace l'ancien même s'il était déclaré perdu (cas "Sécuriser ce téléphone actuel")
+  async registerDevice(userId: number, dto: { deviceId: string; model: string; expoPushToken?: string; forceReplace?: boolean }) {
+    const { deviceId, model, expoPushToken, forceReplace } = dto;
 
     let device = await this.deviceRepository.findOne({ where: { ownerId: userId } });
+
     if (device) {
-      device.deviceId = deviceId;
-      device.model = model;
-      // Conserver l'état de perte actuel (ne pas écraser à false lors d'un simple enregistrement/sync automatique de démarrage)
+      if (!device.isLost || forceReplace) {
+        // Remplacement normal OU remplacement forcé (nouveau téléphone physique)
+        if (forceReplace) {
+          // Avant d'écraser : supprimer tout enregistrement doublon portant déjà ce deviceId
+          // (créé par l'auto-enregistrement au démarrage sur Phone B) pour éviter la contrainte d'unicité.
+          await this.deviceRepository
+            .createQueryBuilder()
+            .delete()
+            .where('deviceId = :deviceId AND id != :id', { deviceId, id: device.id })
+            .execute();
+
+          // Annuler la recherche active sur l'ancien appareil et passer au nouveau
+          device.isLost = false;
+          device.description = '';
+        }
+        device.deviceId = deviceId;
+        device.model = model;
+      }
+      // Sans forceReplace, conserver l'identifiant de l'appareil perdu pour continuer à le traquer.
     } else {
-      device = this.deviceRepository.create({
-        deviceId,
-        model,
-        ownerId: userId,
-        isLost: false,
-      });
+      // Aucun device existant pour cet ownerId : vérifier si un doublon existe par deviceId
+      const existingByDeviceId = await this.deviceRepository.findOne({ where: { deviceId } });
+      if (existingByDeviceId) {
+        // Réutiliser cette ligne plutôt que d'en créer une nouvelle
+        device = existingByDeviceId;
+        device.ownerId = userId;
+        device.model = model;
+      } else {
+        device = this.deviceRepository.create({
+          deviceId,
+          model,
+          ownerId: userId,
+          isLost: false,
+        });
+      }
     }
+
     const savedDevice = await this.deviceRepository.save(device);
 
     // Mettre à jour l'expoPushToken et le currentDeviceId sur le compte de l'utilisateur

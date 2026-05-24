@@ -8,7 +8,7 @@ export class DevicesController {
 
   @Post('register')
   @UseGuards(JwtAuthGuard)
-  async registerDevice(@Req() req: any, @Body() dto: { deviceId: string; model: string }) {
+  async registerDevice(@Req() req: any, @Body() dto: { deviceId: string; model: string; expoPushToken?: string; forceReplace?: boolean }) {
     return this.devicesService.registerDevice(req.user.sub, dto);
   }
 
